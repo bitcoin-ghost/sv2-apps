@@ -26,7 +26,7 @@ share_batch_size = 10
 mode = "FULLTEMPLATE"
 
 # string to be added into the Coinbase scriptSig
-jdc_signature = "Sv2MinerSignature"
+jdc_signature = "your_miner_signature"
 
 # Solo Mining config
 # Coinbase output used to build the coinbase tx in case of Solo Mining (as last-resort solution of the pools fallback system)
@@ -60,9 +60,10 @@ required_extensions = [
 # In case of shares refused by the JDS, the fallback system will propose the same job to the next upstream in this list
 [[upstreams]]
 authority_pubkey = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
-pool_address = "75.119.150.111"
+
+pool_address = "X.Y.Z.W" # IP address you took from a pool colleague
 pool_port = "34254"
-jds_address = "75.119.150.111"
+jds_address = "X.Y.Z.W" # IP address you took from a pool colleague
 jds_port = "34264"
  
 # [[upstreams]]
@@ -73,6 +74,10 @@ jds_port = "34264"
 # jds_port = "34264"
 
 # Bitcoin Core IPC config
+
+# on linux, this is probably: /home/<username>/.bitcoin/signet/node.sock
+# on macOS, this is probably: /Users/<username>/Library/Application Support/Bitcoin/signet/node.sock
+
 [template_provider_type.BitcoinCoreIpc]
 unix_socket_path = "/path/to/node.sock"
 fee_threshold = 100

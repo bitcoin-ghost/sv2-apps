@@ -10,7 +10,8 @@ cert_validity_sec = 3600
 #     https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki#appendix-b-index-of-script-expressions
 # Although the `musig` descriptor is not yet supported and the legacy `combo` descriptor never
 # will be. If you have an address, embed it in a descriptor like `addr(<address here>)`.
-coinbase_reward_script = "addr(tb1qa0sm0hxzj0x25rh8gw5xlzwlsfvvyz8u96w3p8)"
+
+coinbase_reward_script = "addr(your_wallet_address)" # paste the address generated via bitcoin-cli inside the addr()
 
 # Enable this option to set a predefined log file path.
 # When enabled, logs will always be written to this file.
@@ -20,8 +21,8 @@ coinbase_reward_script = "addr(tb1qa0sm0hxzj0x25rh8gw5xlzwlsfvvyz8u96w3p8)"
 # SRI Pool JD config
 listen_jd_address = "0.0.0.0:34264"
 # RPC config for mempool (it can be also the same TP if correctly configured)
-core_rpc_url =  "http://75.119.150.111"
-core_rpc_port = 48332
+core_rpc_url =  "http://127.0.0.1"
+core_rpc_port = 38332
 core_rpc_user =  "username"
 core_rpc_pass =  "password"
 # Time interval used for JDS mempool update 

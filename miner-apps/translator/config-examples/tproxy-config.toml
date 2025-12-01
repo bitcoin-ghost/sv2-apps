@@ -7,7 +7,7 @@ max_supported_version = 2
 min_supported_version = 2
 
 # Extranonce2 size for downstream connections
-# This controls the rollable part of the extranonce for downstream SV1 miners
+# This controls the rollable part of the extranonce for downstream miners
 # Max value for CGminer: 8
 # Min value: 2
 downstream_extranonce2_size = 4
@@ -17,7 +17,7 @@ downstream_extranonce2_size = 4
 user_identity = "your_username_here"
 
 # Aggregate channels: if true, all miners share one upstream channel; if false, each miner gets its own channel
-aggregate_channels = true
+aggregate_channels = false
 
 # Enable this option to set a predefined log file path.
 # When enabled, logs will always be written to this file.
@@ -28,32 +28,25 @@ aggregate_channels = true
 # Extensions that the translator supports (will request if required by server)
 # Example: supported_extensions = [0x0002, 0x0003]
 supported_extensions = [
-    # 0x0002,  # Worker-Specific Hashrate Tracking
+    0x0002,  # Worker-Specific Hashrate Tracking
 ]
 
 # Extensions that the translator requires (server must support these)
 # If the upstream server doesn't support these, the translator will fail over to another upstream
 required_extensions = [
-    # 0x0002,  # Worker-Specific Hashrate Tracking
+    0x0002,  # Worker-Specific Hashrate Tracking
 ]
 
 # Difficulty params
 [downstream_difficulty_config]
 # hashes/s of the weakest miner that will be connecting (e.g.: 10 Th/s = 10_000_000_000_000.0)
-min_individual_miner_hashrate=10_000_000_000_000.0
+min_individual_miner_hashrate=10_000_000.0
 # target number of shares per minute the miner should be sending
 shares_per_minute = 6.0
-# enable variable difficulty adjustment (true by default, set to false when using with JDC)
-enable_vardiff = true
+# disable variable difficulty adjustment when using with JDC (JDC handles vardiff)
+enable_vardiff = false
 
 [[upstreams]]
-# SRI Pool Primary Pool
-address = "75.119.150.111"
-port = 34254
+address = "127.0.0.1"
+port = 34265
 authority_pubkey = "9auqWEzQDVyd2oe1JVGFLMLHZtCo2FFqZwtKA5gd9xbuEu7PH72"
-
-# Braiins Pool Backup Pool
-[[upstreams]]
-address = "107.170.42.64" 
-port = 3333
-authority_pubkey = "9awtMD5KQgvRUh2yFbjVeT7b6hjipWcAsQHd6wEhgtDT9soosna"

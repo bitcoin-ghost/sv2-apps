@@ -8,7 +8,8 @@ listen_address = "0.0.0.0:34254"
 #     https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki#appendix-b-index-of-script-expressions
 # Although the `musig` descriptor is not yet supported and the legacy `combo` descriptor never
 # will be. If you have an address, embed it in a descriptor like `addr(<address here>)`.
-coinbase_reward_script = "addr(tb1qa0sm0hxzj0x25rh8gw5xlzwlsfvvyz8u96w3p8)"
+
+coinbase_reward_script = "addr(your_wallet_address)" # paste the address generated via bitcoin-cli inside the addr()
 
 # Server Id (number to guarantee unique search space allocation across different Pool servers)
 server_id = 1
@@ -40,7 +41,12 @@ required_extensions = [
     # 0x0002,
 ]
 
-# Hosted Sv2 Template Provider config
-[template_provider_type.Sv2Tp]
-address = "75.119.150.111:8442"
-public_key = "9bwHCYnjhbHm4AS3pWg9MtAH83mzWohoJJJDELYBqZhDNqszDLc"
+# Bitcoin Core IPC config
+
+# on linux, this is probably: /home/<username>/.bitcoin/signet/node.sock
+# on macOS, this is probably: /Users/<username>/Library/Application Support/Bitcoin/signet/node.sock
+
+[template_provider_type.BitcoinCoreIpc]
+unix_socket_path = "/path/to/node.sock"
+fee_threshold = 100
+min_interval = 5
