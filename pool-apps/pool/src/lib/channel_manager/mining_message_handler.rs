@@ -145,16 +145,25 @@ impl HandleMiningMessagesFromClientAsync for ChannelManager {
             // Check if Template Provider sent coinbase outputs (Ghost control mode)
             let tp_outputs_data = last_future_template.coinbase_tx_outputs.inner_as_ref();
             let coinbase_outputs = if !tp_outputs_data.is_empty() && last_future_template.coinbase_tx_outputs_count > 0 {
-                // Template Provider (Ghost) controls coinbase - use their outputs
-                match Vec::<TxOut>::consensus_decode(&mut tp_outputs_data.to_vec().as_slice()) {
-                    Ok(outputs) => outputs,
-                    Err(_) => {
-                        // Fallback to pool's output
-                        vec![TxOut {
-                            value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
-                            script_pubkey: self.coinbase_reward_script.script_pubkey(),
-                        }]
+                // Template Provider (Ghost) controls coinbase - decode outputs one by one
+                // (SV2 sends raw outputs without varint count prefix)
+                let mut outputs = Vec::new();
+                let data_vec = tp_outputs_data.to_vec();
+                let mut cursor = std::io::Cursor::new(data_vec);
+                for _ in 0..last_future_template.coinbase_tx_outputs_count {
+                    match TxOut::consensus_decode(&mut cursor) {
+                        Ok(output) => outputs.push(output),
+                        Err(_) => break,
                     }
+                }
+                if outputs.len() == last_future_template.coinbase_tx_outputs_count as usize {
+                    outputs
+                } else {
+                    // Fallback to pool's output
+                    vec![TxOut {
+                        value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
+                        script_pubkey: self.coinbase_reward_script.script_pubkey(),
+                    }]
                 }
             } else {
                 // Standard mode: pool controls coinbase outputs
@@ -455,16 +464,25 @@ impl HandleMiningMessagesFromClientAsync for ChannelManager {
                             // Check if Template Provider sent coinbase outputs (Ghost control mode)
                             let tp_outputs_data = last_future_template.coinbase_tx_outputs.inner_as_ref();
                             let coinbase_outputs = if !tp_outputs_data.is_empty() && last_future_template.coinbase_tx_outputs_count > 0 {
-                                // Template Provider (Ghost) controls coinbase - use their outputs
-                                match Vec::<TxOut>::consensus_decode(&mut tp_outputs_data.to_vec().as_slice()) {
-                                    Ok(outputs) => outputs,
-                                    Err(_) => {
-                                        // Fallback to pool's output
-                                        vec![TxOut {
-                                            value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
-                                            script_pubkey: self.coinbase_reward_script.script_pubkey(),
-                                        }]
+                                // Template Provider (Ghost) controls coinbase - decode outputs one by one
+                                // (SV2 sends raw outputs without varint count prefix)
+                                let mut outputs = Vec::new();
+                                let data_vec = tp_outputs_data.to_vec();
+                                let mut cursor = std::io::Cursor::new(data_vec);
+                                for _ in 0..last_future_template.coinbase_tx_outputs_count {
+                                    match TxOut::consensus_decode(&mut cursor) {
+                                        Ok(output) => outputs.push(output),
+                                        Err(_) => break,
                                     }
+                                }
+                                if outputs.len() == last_future_template.coinbase_tx_outputs_count as usize {
+                                    outputs
+                                } else {
+                                    // Fallback to pool's output
+                                    vec![TxOut {
+                                        value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
+                                        script_pubkey: self.coinbase_reward_script.script_pubkey(),
+                                    }]
                                 }
                             } else {
                                 // Standard mode: pool controls coinbase outputs

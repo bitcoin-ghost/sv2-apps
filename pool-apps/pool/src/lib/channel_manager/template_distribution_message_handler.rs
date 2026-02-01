@@ -51,18 +51,35 @@ impl HandleTemplateDistributionMessagesFromServerAsync for ChannelManager {
                     msg.coinbase_tx_outputs_count,
                     tp_outputs_data.len()
                 );
-                match Vec::<TxOut>::consensus_decode(&mut tp_outputs_data.to_vec().as_slice()) {
-                    Ok(outputs) => {
-                        debug!("Decoded {} outputs from Template Provider", outputs.len());
-                        outputs
+                // Decode outputs one by one (SV2 sends raw outputs without varint count prefix)
+                let mut outputs = Vec::new();
+                let data_vec = tp_outputs_data.to_vec();
+                debug!("TP coinbase outputs: {} bytes", data_vec.len());
+                let mut cursor = std::io::Cursor::new(data_vec.clone());
+                for i in 0..msg.coinbase_tx_outputs_count as u32 {
+                    let pos = cursor.position();
+                    match TxOut::consensus_decode(&mut cursor) {
+                        Ok(output) => {
+                            info!("Decoded TP output {}: value={} sats", i, output.value);
+                            outputs.push(output);
+                        }
+                        Err(e) => {
+                            warn!("Failed to decode TP output {} at pos {}: {:?}", i, pos, e);
+                            warn!("Remaining bytes: {:02x?}", &data_vec[pos as usize..]);
+                            break;
+                        }
                     }
-                    Err(e) => {
-                        warn!("Failed to decode TP outputs, falling back to pool outputs: {}", e);
-                        let mut fallback = deserialize_outputs(channel_manager_data.coinbase_outputs.clone())
-                            .expect("deserialization failed");
-                        fallback[0].value = Amount::from_sat(msg.coinbase_tx_value_remaining);
-                        fallback
-                    }
+                }
+                if outputs.len() == msg.coinbase_tx_outputs_count as usize {
+                    info!("Successfully decoded {} outputs from Template Provider", outputs.len());
+                    outputs
+                } else {
+                    warn!("Could not decode all TP outputs ({}/{}), falling back to pool outputs",
+                          outputs.len(), msg.coinbase_tx_outputs_count);
+                    let mut fallback = deserialize_outputs(channel_manager_data.coinbase_outputs.clone())
+                        .expect("deserialization failed");
+                    fallback[0].value = Amount::from_sat(msg.coinbase_tx_value_remaining);
+                    fallback
                 }
             } else {
                 // Standard mode: pool controls coinbase outputs
