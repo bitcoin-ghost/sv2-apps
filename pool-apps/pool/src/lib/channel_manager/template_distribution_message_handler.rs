@@ -1,14 +1,14 @@
 use std::sync::atomic::Ordering;
 
 use stratum_apps::stratum_core::{
-    bitcoin::Amount,
+    bitcoin::{consensus::Decodable, Amount, TxOut},
     channels_sv2::outputs::deserialize_outputs,
     handlers_sv2::HandleTemplateDistributionMessagesFromServerAsync,
     mining_sv2::SetNewPrevHash as SetNewPrevHashMp,
     parsers_sv2::{Mining, Tlv},
     template_distribution_sv2::*,
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     channel_manager::{ChannelManager, RouteMessageTo},
@@ -40,8 +40,37 @@ impl HandleTemplateDistributionMessagesFromServerAsync for ChannelManager {
             }
 
             let mut messages: Vec<RouteMessageTo> = Vec::new();
-            let mut coinbase_output = deserialize_outputs(channel_manager_data.coinbase_outputs.clone()).expect("deserialization failed");
-            coinbase_output[0].value = Amount::from_sat(msg.coinbase_tx_value_remaining);
+
+            // Check if Template Provider sent coinbase outputs (Ghost control mode)
+            // If TP provides outputs, use them instead of pool's own outputs
+            let tp_outputs_data = msg.coinbase_tx_outputs.inner_as_ref();
+            let coinbase_output = if !tp_outputs_data.is_empty() && msg.coinbase_tx_outputs_count > 0 {
+                // Template Provider (Ghost) controls coinbase - use their outputs
+                debug!(
+                    "Using Template Provider's coinbase outputs: count={}, len={}",
+                    msg.coinbase_tx_outputs_count,
+                    tp_outputs_data.len()
+                );
+                match Vec::<TxOut>::consensus_decode(&mut tp_outputs_data.to_vec().as_slice()) {
+                    Ok(outputs) => {
+                        debug!("Decoded {} outputs from Template Provider", outputs.len());
+                        outputs
+                    }
+                    Err(e) => {
+                        warn!("Failed to decode TP outputs, falling back to pool outputs: {}", e);
+                        let mut fallback = deserialize_outputs(channel_manager_data.coinbase_outputs.clone())
+                            .expect("deserialization failed");
+                        fallback[0].value = Amount::from_sat(msg.coinbase_tx_value_remaining);
+                        fallback
+                    }
+                }
+            } else {
+                // Standard mode: pool controls coinbase outputs
+                let mut pool_outputs = deserialize_outputs(channel_manager_data.coinbase_outputs.clone())
+                    .expect("deserialization failed");
+                pool_outputs[0].value = Amount::from_sat(msg.coinbase_tx_value_remaining);
+                pool_outputs
+            };
 
             for (downstream_id, downstream) in channel_manager_data.downstream.iter_mut() {
                 // If REQUIRES_CUSTOM_WORK is set, skip template handling entirely (see https://github.com/stratum-mining/sv2-apps/issues/55)

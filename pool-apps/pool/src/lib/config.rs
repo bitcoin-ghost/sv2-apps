@@ -13,6 +13,35 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// Default values for share webhook configuration
+fn default_batch_size() -> usize {
+    100
+}
+
+fn default_batch_timeout_ms() -> u64 {
+    5000
+}
+
+fn default_max_retries() -> u32 {
+    3
+}
+
+/// Configuration for webhook notifications of valid shares
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct ShareWebhookConfig {
+    /// URL to POST share batches to
+    pub url: String,
+    /// Number of shares to accumulate before sending a batch
+    #[serde(default = "default_batch_size")]
+    pub batch_size: usize,
+    /// Maximum time (ms) to wait before sending a partial batch
+    #[serde(default = "default_batch_timeout_ms")]
+    pub batch_timeout_ms: u64,
+    /// Number of retry attempts for failed requests
+    #[serde(default = "default_max_retries")]
+    pub max_retries: u32,
+}
+
 use stratum_apps::{
     config_helpers::{opt_path_from_toml, CoinbaseRewardScript},
     key_utils::{Secp256k1PublicKey, Secp256k1SecretKey},
@@ -40,6 +69,8 @@ pub struct PoolConfig {
     required_extensions: Vec<u16>,
     #[serde(default)]
     monitoring_address: Option<SocketAddr>,
+    #[serde(default)]
+    share_webhook: Option<ShareWebhookConfig>,
 }
 
 impl PoolConfig {
@@ -75,6 +106,40 @@ impl PoolConfig {
             supported_extensions,
             required_extensions,
             monitoring_address: None,
+            share_webhook: None,
+        }
+    }
+
+    /// Creates a new instance of the [`PoolConfig`] with optional webhook configuration.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_webhook(
+        pool_connection: ConnectionConfig,
+        template_provider_type: TemplateProviderType,
+        authority_config: AuthorityConfig,
+        coinbase_reward_script: CoinbaseRewardScript,
+        shares_per_minute: SharesPerMinute,
+        share_batch_size: SharesBatchSize,
+        server_id: u16,
+        supported_extensions: Vec<u16>,
+        required_extensions: Vec<u16>,
+        share_webhook: Option<ShareWebhookConfig>,
+    ) -> Self {
+        Self {
+            listen_address: pool_connection.listen_address,
+            template_provider_type,
+            authority_public_key: authority_config.public_key,
+            authority_secret_key: authority_config.secret_key,
+            cert_validity_sec: pool_connection.cert_validity_sec,
+            coinbase_reward_script,
+            pool_signature: pool_connection.signature,
+            shares_per_minute,
+            share_batch_size,
+            log_file: None,
+            server_id,
+            supported_extensions,
+            required_extensions,
+            monitoring_address: None,
+            share_webhook,
         }
     }
 
@@ -164,6 +229,11 @@ impl PoolConfig {
     /// Returns the monitoring address (optional).
     pub fn monitoring_address(&self) -> Option<SocketAddr> {
         self.monitoring_address
+    }
+
+    /// Returns the share webhook configuration (optional).
+    pub fn share_webhook(&self) -> Option<&ShareWebhookConfig> {
+        self.share_webhook.as_ref()
     }
 }
 

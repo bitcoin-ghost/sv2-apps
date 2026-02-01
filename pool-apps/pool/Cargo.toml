@@ -29,6 +29,10 @@ clap = { version = "4.5.39", features = ["derive"] }
 bitcoin_core_sv2 = { path = "../../bitcoin-core-sv2" }
 hex = "0.4.3"
 hotpath = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+serde_json = "1.0"
 
 [features]
 hotpath = ["hotpath/hotpath"]

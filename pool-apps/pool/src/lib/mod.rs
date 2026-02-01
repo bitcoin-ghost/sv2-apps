@@ -14,6 +14,7 @@ use crate::{
     channel_manager::ChannelManager,
     config::PoolConfig,
     error::PoolErrorKind,
+    share_webhook::{ShareWebhookSender, ShareWebhookWorker},
     status::State,
     template_receiver::{
         bitcoin_core::{connect_to_bitcoin_core, BitcoinCoreSv2Config},
@@ -28,6 +29,7 @@ pub mod downstream;
 pub mod error;
 mod io_task;
 mod monitoring;
+pub mod share_webhook;
 pub mod status;
 pub mod template_receiver;
 pub mod utils;
@@ -74,6 +76,25 @@ impl PoolSv2 {
 
         debug!("Channels initialized.");
 
+        // Initialize share webhook if configured
+        let share_webhook_sender: Option<ShareWebhookSender> =
+            if let Some(webhook_config) = self.config.share_webhook() {
+                let (sender, worker) =
+                    ShareWebhookWorker::new(webhook_config.clone(), self.config.server_id());
+                info!(
+                    url = %webhook_config.url,
+                    batch_size = webhook_config.batch_size,
+                    "Share webhook configured"
+                );
+                let shutdown_rx = notify_shutdown.subscribe();
+                task_manager.spawn(async move {
+                    worker.run(shutdown_rx).await;
+                });
+                Some(sender)
+            } else {
+                None
+            };
+
         let channel_manager = ChannelManager::new(
             self.config.clone(),
             channel_manager_to_tp_sender.clone(),
@@ -81,6 +102,7 @@ impl PoolSv2 {
             channel_manager_to_downstream_sender.clone(),
             downstream_to_channel_manager_receiver,
             encoded_outputs.clone(),
+            share_webhook_sender,
         )
         .await?;
 

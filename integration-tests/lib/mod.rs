@@ -13,6 +13,7 @@ use jd_server::{
 use mining_device::Secp256k1PublicKey as MiningDeviceSecp256k1PublicKey;
 use once_cell::sync::OnceCell;
 use pool_sv2::PoolSv2;
+pub use pool_sv2::config::ShareWebhookConfig;
 use std::{
     convert::TryFrom,
     net::{Ipv4Addr, SocketAddr},
@@ -111,6 +112,16 @@ pub async fn start_pool(
     supported_extensions: Vec<u16>,
     required_extensions: Vec<u16>,
 ) -> (PoolSv2, SocketAddr) {
+    start_pool_with_webhook(template_provider_config, supported_extensions, required_extensions, None).await
+}
+
+/// Start a pool with optional webhook configuration for share notifications
+pub async fn start_pool_with_webhook(
+    template_provider_config: TemplateProviderType,
+    supported_extensions: Vec<u16>,
+    required_extensions: Vec<u16>,
+    share_webhook: Option<ShareWebhookConfig>,
+) -> (PoolSv2, SocketAddr) {
     use pool_sv2::config::PoolConfig;
     let listening_address = get_available_address();
     let authority_public_key = Secp256k1PublicKey::try_from(
@@ -133,7 +144,7 @@ pub async fn start_pool(
     let authority_config =
         pool_sv2::config::AuthorityConfig::new(authority_public_key, authority_secret_key);
     let share_batch_size = 1;
-    let config = PoolConfig::new(
+    let config = PoolConfig::new_with_webhook(
         connection_config,
         template_provider_config,
         authority_config,
@@ -143,6 +154,7 @@ pub async fn start_pool(
         1,
         supported_extensions,
         required_extensions,
+        share_webhook,
     );
     let pool = PoolSv2::new(config);
     let pool_clone = pool.clone();
