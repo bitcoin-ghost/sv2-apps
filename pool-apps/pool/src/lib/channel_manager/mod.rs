@@ -207,12 +207,34 @@ impl ChannelManager {
             }
         };
 
-        let coinbase_output = TxOut {
-            value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
-            script_pubkey: self.coinbase_reward_script.script_pubkey(),
+        // Check if Template Provider sent coinbase outputs (Ghost control mode)
+        // If TP provides outputs, use them instead of pool's own outputs
+        use stratum_apps::stratum_core::bitcoin::consensus::Decodable;
+        let tp_outputs_data = last_future_template.coinbase_tx_outputs.inner_as_ref();
+        let coinbase_outputs = if !tp_outputs_data.is_empty() && last_future_template.coinbase_tx_outputs_count > 0 {
+            // Template Provider (Ghost) controls coinbase - use their outputs
+            match Vec::<TxOut>::consensus_decode(&mut tp_outputs_data.to_vec().as_slice()) {
+                Ok(outputs) => {
+                    debug!("Bootstrap: Using {} outputs from Template Provider", outputs.len());
+                    outputs
+                }
+                Err(e) => {
+                    warn!("Bootstrap: Failed to decode TP outputs, falling back to pool output: {}", e);
+                    vec![TxOut {
+                        value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
+                        script_pubkey: self.coinbase_reward_script.script_pubkey(),
+                    }]
+                }
+            }
+        } else {
+            // Standard mode: pool controls coinbase outputs
+            vec![TxOut {
+                value: Amount::from_sat(last_future_template.coinbase_tx_value_remaining),
+                script_pubkey: self.coinbase_reward_script.script_pubkey(),
+            }]
         };
 
-        if let Err(e) = group_channel.on_new_template(last_future_template, vec![coinbase_output]) {
+        if let Err(e) = group_channel.on_new_template(last_future_template, coinbase_outputs) {
             error!(error = ?e, "Failed to add template to group channel");
             return None;
         }
