@@ -671,14 +671,16 @@ impl ChannelManager {
                         self.channel_manager_data.super_safe_lock(|c| {
                             c.upstream_extended_channel
                                 .as_ref()
-                                .unwrap()
-                                .read()
-                                .unwrap()
-                                .get_channel_id()
+                                .map(|ch| ch.read().unwrap().get_channel_id())
                         });
+                    // If no upstream channel exists yet, skip the UpdateChannel
+                    let Some(channel_id) = upstream_extended_channel_id else {
+                        warn!("Skipping UpdateChannel - no upstream extended channel exists yet");
+                        return Ok(());
+                    };
                     // We need to set the channel id to the upstream extended
                     // channel id
-                    m.channel_id = upstream_extended_channel_id;
+                    m.channel_id = channel_id;
                 }
                 info!(
                     "Sending UpdateChannel message to upstream for channel_id: {:?}",
