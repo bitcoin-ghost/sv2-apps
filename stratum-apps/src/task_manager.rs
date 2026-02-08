@@ -48,7 +48,12 @@ impl TaskManager {
         );
 
         let handle = tokio::spawn(fut.instrument(span));
-        self.tasks.lock().unwrap().push(handle);
+        // M-33: Handle poisoned mutex gracefully instead of panicking
+        let mut tasks = self.tasks.lock().unwrap_or_else(|poisoned| {
+            tracing::error!("M-33: Task mutex poisoned, recovering");
+            poisoned.into_inner()
+        });
+        tasks.push(handle);
     }
 
     /// Waits for all managed tasks to complete.
@@ -58,7 +63,11 @@ impl TaskManager {
     /// (most recently spawned first).
     pub async fn join_all(&self) {
         let handles = {
-            let mut tasks = self.tasks.lock().unwrap();
+            // M-33: Handle poisoned mutex gracefully
+            let mut tasks = self.tasks.lock().unwrap_or_else(|poisoned| {
+                tracing::error!("M-33: Task mutex poisoned in join_all, recovering");
+                poisoned.into_inner()
+            });
             std::mem::take(&mut *tasks)
         };
 
@@ -72,7 +81,11 @@ impl TaskManager {
     /// This method immediately cancels all tasks that were spawned through this
     /// manager. The tasks will be terminated without waiting for them to complete.
     pub async fn abort_all(&self) {
-        let mut tasks = self.tasks.lock().unwrap();
+        // M-33: Handle poisoned mutex gracefully
+        let mut tasks = self.tasks.lock().unwrap_or_else(|poisoned| {
+            tracing::error!("M-33: Task mutex poisoned in abort_all, recovering");
+            poisoned.into_inner()
+        });
         for handle in tasks.drain(..) {
             handle.abort();
         }

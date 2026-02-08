@@ -170,7 +170,8 @@ impl SignatureService {
 
     #[cfg(feature = "std")]
     pub fn sign(&self, message: Vec<u8>, private_key: SecretKey) -> Signature {
-        self.sign_with_rng(message, private_key, &mut rand::thread_rng())
+        // H-3 FIX: Use OsRng for cryptographic security instead of thread_rng()
+        self.sign_with_rng(message, private_key, &mut rand::rngs::OsRng)
     }
 
     #[inline]
